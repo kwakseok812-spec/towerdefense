@@ -50,6 +50,7 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer;touch-
 .pb small{font-size:12px;font-weight:700;color:var(--gold)}
 .pb.up{border-color:#4aa86d;background:#1f4231}
 .pb.sell{border-color:#a8574a;background:#43241f}
+.pb.sell.armed{background:#8a2f26;border-color:#ff8f7a;color:#fff}
 .pb[disabled]{opacity:.4}
 #row2{display:grid;grid-template-columns:1fr 84px;gap:8px}
 #go{height:50px;border-radius:14px;background:linear-gradient(#37c77a,#27a864);font-weight:900;font-size:18px;color:#06281a;box-shadow:0 3px 0 #17724a;
@@ -82,7 +83,7 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer;touch-
   <div id="hud">
    <div class="chip hp" id="hp">♥ 20</div>
    <div class="chip gold" id="gold">● 150</div>
-   <div class="chip wv" id="wv">0/10</div>
+   <div class="chip wv" id="wv">파도 1/10</div>
   </div>
   <canvas id="cv" aria-label="세균 방어전 게임 화면"></canvas>
   <div id="ov"><div class="box"><h1 id="ovT">승리</h1><p id="ovP"></p><button id="again">다시 하기</button></div></div>
@@ -94,7 +95,7 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer;touch-
    </div>
    <div id="panel">
     <button class="pb up" id="bUp"><span id="bUpT">강화</span><small id="bUpC"></small></button>
-    <button class="pb sell" id="bSell"><span>판매</span><small id="bSellC"></small></button>
+    <button class="pb sell" id="bSell"><span id="bSellT">판매</span><small id="bSellC"></small></button>
     <button class="pb" id="bClose">닫기</button>
    </div>
    <div id="row2">
@@ -147,22 +148,22 @@ const TYPES={
 const ENEMY={
   n:{hp:68,sp:44,gold:5,r:10,leak:1,col:'#7bd96a',dk:'#3f8a3a'},
   f:{hp:44,sp:78,gold:6,r:8,leak:1,col:'#ffc542',dk:'#a8741a'},
-  t:{hp:255,sp:32,gold:12,r:12,leak:1,col:'#8a9ac0',dk:'#4a587c'},
-  b:{hp:1400,sp:26,gold:120,r:18,leak:5,col:'#a55bd6',dk:'#5c2a85'}
+  t:{hp:230,sp:32,gold:12,r:12,leak:1,col:'#8a9ac0',dk:'#4a587c'},
+  b:{hp:1000,sp:26,gold:120,r:18,leak:5,col:'#a55bd6',dk:'#5c2a85'}
 };
 const WAVES=[
   [['n',6,1.2]],
   [['n',10,1.0]],
   [['n',8,1.0],['f',5,.7]],
   [['t',3,2],['n',10,.8]],
-  [['f',14,.55],['n',8,.8]],
-  [['t',7,1.5],['f',8,.6]],
+  [['f',16,.5],['n',10,.7]],
+  [['t',8,1.4],['f',10,.55]],
   [['n',18,.6],['t',6,1.4]],
   [['f',18,.45],['t',9,1.2]],
   [['t',14,1.0],['f',14,.5]],
   [['b',2,6],['t',8,1.0],['f',12,.5]]
 ];
-const CFG={hpScale:0.3,bonus:5};
+const CFG={hpScale:0.35,bonus:5};
 const START_GOLD=150, START_HP=20;
 
 /* ---------- 상태 ---------- */
@@ -285,7 +286,7 @@ function update(dt){
 function finish(win){
   G.state=win?'won':'lost'; G.active=false;
   $('ovT').textContent=win?'승리!':'기지가 무너졌어요'; $('ovT').style.fontSize=win?'44px':'28px';
-  $('ovP').textContent=win?('체력 '+G.hp+' 남기고 10파도 방어'):((G.wave)+'파도에서 막혔어요');
+  $('ovP').textContent=win?('체력 '+G.hp+' 남기고 모두 막았어요'):((G.wave)+'파도에서 막혔어요');
   ov.className='show '+(win?'win':'lose');
   if(win&&!REDUCE){for(let i=0;i<60;i++){const cols=['#ffd166','#6be3a0','#3ec6e0','#ff8f8f'];G.parts.push({x:Math.random()*W,y:-10-Math.random()*60,vx:(Math.random()-.5)*40,vy:60+Math.random()*120,life:2.5,max:2.5,col:cols[i%4],r:3});}}
   syncUI();
@@ -294,7 +295,7 @@ function finish(win){
 /* ---------- UI ---------- */
 function hudPulse(id,cls){const el=$(id);el.classList.remove(cls);void el.offsetWidth;el.classList.add(cls);}
 function syncUI(){
-  $('hp').textContent='♥ '+G.hp; $('gold').textContent='● '+G.gold; $('wv').textContent=G.wave+'/'+TOTAL_WAVES;
+  $('hp').textContent='♥ '+G.hp; $('gold').textContent='● '+G.gold; $('wv').textContent='파도 '+(G.active?G.wave:Math.min(G.wave+1,TOTAL_WAVES))+'/'+TOTAL_WAVES;
   document.querySelectorAll('.tw').forEach(b=>{const t=b.dataset.t;b.classList.toggle('on',G.build===t&&!G.sel);b.classList.toggle('poor',G.gold<TYPES[t].cost);});
   const go=$('go'); const canGo=G.state==='play'&&!G.active&&G.wave<TOTAL_WAVES;
   go.disabled=!canGo; go.textContent=G.active?('파도 '+G.wave+' 진행 중'):(G.wave>=TOTAL_WAVES?'끝':'다음 파도 ▶');
@@ -302,14 +303,22 @@ function syncUI(){
   $('row1').style.display=G.sel?'none':'grid'; $('panel').classList.toggle('show',!!G.sel);
   if(G.sel){
     const t=G.sel,T=TYPES[t.type]; const nxt=t.lv<2?T.lv[t.lv+1].up:null;
-    $('bUpT').textContent=nxt===null?'최대 강화':(T.name+' 강화 → '+(t.lv+2)); $('bUpC').textContent=nxt===null?('단계 3/3'):('● '+nxt);
+    $('bUpT').textContent=nxt===null?'최대 강화':(T.name+' 강화 '+(t.lv+1)+'→'+(t.lv+2)); $('bUpC').textContent=nxt===null?('3단계 완료'):('● '+nxt);
     $('bUp').disabled=nxt===null||G.gold<nxt; $('bSellC').textContent='+'+Math.floor(totalSpent(t)*.7);
+    if(sellArm&&sellArm!==t)disarmSell(); $('bSellT').textContent=sellArm?'한 번 더':'판매'; $('bSell').classList.toggle('armed',!!sellArm);
   }
 }
-document.querySelectorAll('.tw').forEach(b=>b.addEventListener('click',()=>{G.build=b.dataset.t;G.sel=null;syncUI();}));
-$('bUp').addEventListener('click',()=>{if(G.sel){if(!upgradeTower(G.sel))hudPulse('gold','bad');}});
-$('bSell').addEventListener('click',()=>{if(G.sel)sellTower(G.sel);});
-$('bClose').addEventListener('click',()=>{G.sel=null;syncUI();});
+document.querySelectorAll('.tw').forEach(b=>b.addEventListener('click',()=>{disarmSell();G.build=b.dataset.t;G.sel=null;syncUI();}));
+$('bUp').addEventListener('click',()=>{if(G.sel){if(!upgradeTower(G.sel)){hudPulse('gold','bad');float(G.sel.x,G.sel.y-22,'돈 부족','#ff8f8f');}}});
+let sellArm=null,sellTimer=0;
+function disarmSell(){sellArm=null;clearTimeout(sellTimer);const b=$('bSellT');if(b){b.textContent='판매';$('bSell').classList.remove('armed');}}
+$('bSell').addEventListener('click',()=>{
+  if(!G.sel)return;
+  if(sellArm===G.sel){const t=G.sel;disarmSell();sellTower(t);return;}
+  sellArm=G.sel; $('bSellT').textContent='한 번 더'; $('bSell').classList.add('armed');
+  clearTimeout(sellTimer); sellTimer=setTimeout(disarmSell,2500);
+});
+$('bClose').addEventListener('click',()=>{disarmSell();G.sel=null;syncUI();});
 $('go').addEventListener('click',()=>{startWave();});
 $('spd').addEventListener('click',()=>{G.speed=G.speed===1?2:1;$('spd').textContent=G.speed+'×';$('spd').classList.toggle('fast',G.speed===2);});
 $('again').addEventListener('click',()=>{const sp=G.speed;newGame();G.speed=sp;});
@@ -320,10 +329,12 @@ cv.addEventListener('pointerdown',ev=>{
   ev.preventDefault(); if(G.state!=='play')return;
   const p=cellOf(ev),c=Math.floor(p.x/CELL),r=Math.floor(p.y/CELL);
   const t=G.towers.find(t=>t.c===c&&t.r===r);
-  if(t){G.sel=t;t.show=1.2;syncUI();return;}
-  if(G.sel){G.sel=null;syncUI();return;}
-  if(c<0||r<0||c>=COLS||r>=ROWS||blocked[r][c])return;
-  if(!placeTower(c,r,G.build))hudPulse('gold','bad');
+  if(t){if(G.sel!==t)disarmSell();G.sel=t;t.show=1.2;syncUI();return;}
+  if(G.sel){disarmSell();G.sel=null;syncUI();return;}
+  if(c<0||r<0||c>=COLS||r>=ROWS)return;
+  const fx=c*CELL+CELL/2,fy=r*CELL+CELL/2;
+  if(blocked[r][c]){float(fx,fy,'길 위','#ff8f8f');return;}
+  if(!placeTower(c,r,G.build)){hudPulse('gold','bad');float(fx,fy,'돈 부족','#ff8f8f');}
 });
 cv.addEventListener('pointermove',ev=>{ if(ev.pointerType==='mouse'){const p=cellOf(ev);G.hover=[Math.floor(p.x/CELL),Math.floor(p.y/CELL)];} });
 cv.addEventListener('pointerleave',()=>{G.hover=null;});
