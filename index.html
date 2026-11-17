@@ -77,8 +77,11 @@ svg{display:block}
   box-shadow:0 4px 0 #071420,0 0 0 3px color-mix(in srgb,var(--tc) 28%,transparent),0 0 18px color-mix(in srgb,var(--tc) 35%,transparent);transform:translateY(-2px)}
 .tw.on canvas{transform:scale(1.08) rotate(-4deg)}
 .tw.on:active{transform:translateY(2px)}
-.tw.poor{opacity:.55}
+.tw:not(.on){border-color:color-mix(in srgb,var(--tc) 62%,#24476a);background:linear-gradient(180deg,color-mix(in srgb,var(--tc) 20%,#1b3a54),color-mix(in srgb,var(--tc) 8%,#112538))}
+.tw .ds{font-size:10.5px;font-weight:800;color:color-mix(in srgb,var(--tc) 80%,#fff);letter-spacing:-.2px;line-height:1;white-space:nowrap}
 .tw.poor .co{color:#ff9a9a}
+.tw.hello{animation:hello .5s cubic-bezier(.3,1.6,.5,1) both}
+@keyframes hello{0%{transform:translateY(0)}40%{transform:translateY(-9px) scale(1.06)}100%{transform:translateY(0)}}
 .coin{display:inline-block;width:12px;height:12px;border-radius:50%;flex:none;
   background:radial-gradient(circle at 35% 32%,#fff6cf 0 18%,#ffd34d 45%,#c98a12 100%);box-shadow:inset 0 0 0 1.5px #9a650a}
 
@@ -159,6 +162,7 @@ svg{display:block}
   #start.hide{opacity:0}
   .chip.bad,.chip.hit{animation:none}
   .tw.on canvas{transform:none}
+  .tw.hello{animation:none}
 }
 </style>
 </head>
@@ -183,9 +187,9 @@ svg{display:block}
   <div id="ov"><div class="box"><canvas id="ovArt"></canvas><h1 id="ovT">승리</h1><p id="ovP"></p><button id="again" class="bigbtn">다시 하기</button></div></div>
   <div id="foot">
    <div id="row1">
-    <button class="tw on" data-t="bolt" style="--tc:#3ec6e0"><canvas class="ic"></canvas><span class="tx"><span class="nm">연발</span><span class="co"><i class="coin"></i>50</span></span></button>
-    <button class="tw" data-t="blast" style="--tc:#ff9a3c"><canvas class="ic"></canvas><span class="tx"><span class="nm">폭발</span><span class="co"><i class="coin"></i>90</span></span></button>
-    <button class="tw" data-t="frost" style="--tc:#9ad8ff"><canvas class="ic"></canvas><span class="tx"><span class="nm">냉각</span><span class="co"><i class="coin"></i>70</span></span></button>
+    <button class="tw on" data-t="bolt" style="--tc:#3ec6e0"><canvas class="ic"></canvas><span class="tx"><span class="nm">연발</span><span class="ds">빠름</span><span class="co"><i class="coin"></i>50</span></span></button>
+    <button class="tw" data-t="blast" style="--tc:#ff9a3c"><canvas class="ic"></canvas><span class="tx"><span class="nm">폭발</span><span class="ds">범위</span><span class="co"><i class="coin"></i>90</span></span></button>
+    <button class="tw" data-t="frost" style="--tc:#9ad8ff"><canvas class="ic"></canvas><span class="tx"><span class="nm">냉각</span><span class="ds">느리게</span><span class="co"><i class="coin"></i>70</span></span></button>
    </div>
    <div id="panel">
     <button class="pb up" id="bUp"><canvas id="bUpI"></canvas><span class="tx"><span id="bUpT">강화</span><small class="dl" id="bUpD"></small><small id="bUpC"><i class="coin"></i><span id="bUpCN"></span></small></span></button>
@@ -434,7 +438,8 @@ $('go').addEventListener('click',()=>{startWave();});
 $('spd').addEventListener('click',()=>{G.speed=G.speed>=3?1:G.speed+1;syncSpd();});
 function syncSpd(){$('spd').textContent=G.speed+'×';$('spd').classList.toggle('fast',G.speed>=2);$('spd').classList.toggle('fast3',G.speed===3);}
 $('again').addEventListener('click',()=>{const sp=G.speed;newGame();G.speed=sp;syncSpd();});
-function hideStart(){ if(!ui.startShown)return; ui.startShown=false; const s=$('start'); s.classList.add('hide'); setTimeout(()=>{s.style.display='none';},REDUCE?0:340); }
+function hideStart(){ if(!ui.startShown)return; ui.startShown=false;
+  if(!REDUCE)document.querySelectorAll('.tw').forEach((b,i)=>{b.style.animationDelay=(.25+i*.13)+'s';b.classList.add('hello');setTimeout(()=>{b.classList.remove('hello');b.style.animationDelay='';},1300);}); const s=$('start'); s.classList.add('hide'); setTimeout(()=>{s.style.display='none';},REDUCE?0:340); }
 $('startBtn').addEventListener('click',hideStart);
 window.addEventListener('keydown',e=>{if(e.code==='Space'){e.preventDefault(); if(ui.startShown){hideStart();return;} startWave();}});
 
