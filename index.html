@@ -464,7 +464,7 @@ const WAVES5=[
   [['b5',1,3],['j',14,.8],['w',12,.8],['t',8,1.0],['h',6,1.2]]
 ];
 let WAVES=WAVES1;
-const CFG={hpScale:0.35,bonus:5};   // 판마다 STAGES 값으로 바뀜(1탄 값 = 처음 값)
+const CFG={hpScale:0.35,bonus:5,early:0,pow:1};   // 판마다 STAGES 값으로 바뀜(1탄 값 = 처음 값)
 const THEMES={
   1:{g0:'#174a4b',g1:'#0c2a30',glow:'rgba(130,240,205,.13)',glow0:'rgba(130,240,205,0)',cell:'150,240,215',vein:['#3a1222','#7d2b45','#e88d9c','#b9465f','#c95870'],dash:'rgba(40,6,18,.5)',hl:'rgba(255,200,210,.16)',arrow:'rgba(255,225,230,.42)',edge:'rgba(160,255,230,.13)'},
   3:{g0:'#34300f',g1:'#171507',glow:'rgba(210,240,120,.13)',glow0:'rgba(210,240,120,0)',cell:'210,235,130',vein:['#3a1f0a','#7a4a1a','#f3cc86','#c98a3a','#dba455'],dash:'rgba(40,20,5,.5)',hl:'rgba(255,232,185,.22)',arrow:'rgba(255,242,215,.5)',edge:'rgba(225,255,170,.15)'},
@@ -483,13 +483,13 @@ const STAGES=[
    routes:[[[-20,60],[60,60],[60,380],[60,456]],[[-20,60],[60,60],[300,60],[300,180],[140,180],[140,300],[300,300],[300,380],[60,380],[60,456]]],
    ent:[{x:3,y:60,f:0}],waves:WAVES3,newE:['s','a','h','b3'],routeOf:{f:0,s:0},shortcut:[[60,150],[60,250],[60,330]]},
   // 4탄: 입구 둘(왼쪽 위 = 긴 길 836, 오른쪽 = 짧은 길 436)이 기지 앞에서 만남. 포탑 칸은 5개(응원은 쉼)
-  {id:4,name:'두 갈래 기관지',total:15,gold:230,hp:20,hpScale:.32,bonus:6,ver:1,towers:['bolt','blast','frost','toxin','sniper'],
+  {id:4,name:'두 갈래 기관지',total:15,gold:230,hp:20,hpScale:.48,pow:.8,bonus:6,ver:1,towers:['bolt','blast','frost','toxin','sniper'],
    routes:[[[-20,60],[260,60],[260,180],[100,180],[100,380],[100,456]],[[380,300],[220,300],[220,380],[100,380],[100,456]]],
    ent:[{x:3,y:60,f:0},{x:357,y:300,f:1}],waves:WAVES4,newE:['k','v','b4']},
   // 5탄: 길 하나가 한 바퀴 돌며 스스로를 가로지름(교차점 (220,300)). 포탑 칸은 5개(독은 쉼)
-  {id:5,name:'교차 순환로',total:15,gold:240,hp:20,hpScale:.86,bonus:6,ver:1,towers:['bolt','blast','frost','boost','chain'],
+  {id:5,name:'교차 순환로',total:15,gold:240,hp:20,hpScale:1.3,pow:.8,bonus:6,ver:1,towers:['bolt','blast','frost','boost','chain'],
    routes:[[[-20,60],[300,60],[300,300],[60,300],[60,140],[220,140],[220,380],[140,380],[140,456]]],
-   ent:[{x:3,y:60,f:0}],waves:WAVES5,newE:['w','j','b5'],cross:[[220,300]]}
+   ent:[{x:3,y:60,f:0}],waves:WAVES5,newE:['w','j','b5'],/* 교차점 (220,300) */}
 ];
 let S=null;
 
@@ -502,7 +502,7 @@ let G;
 const ui={pickT:0,startShown:true,view:'start',dlg:false,noSave:false,justUnlocked:0};
 function newGame(){
   G={gold:S.gold,hp:S.hp,wave:0,active:false,queue:[],clock:0,enemies:[],towers:[],projs:[],parts:[],rings:[],floats:[],
-     time:0,healT:1.6,arcs:[],state:'play',speed:1,sel:null,build:'bolt',shake:0,nid:1,hover:null,pend:null,flashBase:0,hintUp:false};
+     time:0,healT:1.6,arcs:[],extra:0,state:'play',speed:1,sel:null,build:'bolt',shake:0,nid:1,hover:null,pend:null,flashBase:0,hintUp:false};
   syncUI(); ov.classList.remove('show','win','lose','st');
 }
 const $=id=>document.getElementById(id);
@@ -534,7 +534,7 @@ function sellTower(t){
 }
 function startWave(){
   if(G.state!=='play'||G.active||G.wave>=TOTAL_WAVES)return false;
-  G.wave++; G.active=true; G.clock=0; G.queue=[]; let tt=0, alt=0;
+  G.wave++; G.active=true; G.clock=0; G.extra=0; hideTip(); G.queue=[]; let tt=0, alt=0;
   for(const [type,n,gap,ln] of WAVES[G.wave-1]){ for(let i=0;i<n;i++){G.queue.push({at:tt,type,lane:S.routeOf?(S.routeOf[type]!==undefined?S.routeOf[type]:1):(ln==='A'?0:(ln==='B'?1:(ln==='x'?(alt++%2):0)))});tt+=gap;} tt+=1.2; }
   if(S.newE&&!ui.noSave){ for(const [type] of WAVES[G.wave-1]){ if(S.newE.includes(type)&&!mem.seen[type]){mem.seen[type]=1;saveNow();showIntro(type);} } }
   syncUI(); return true;
@@ -543,8 +543,10 @@ function mkEnemy(type,rt,dist,hp){
   const p=posAt(M.routes[rt],dist);
   const e={id:G.nid++,type,hp,max:hp,rt,d:dist,x:p.x,y:p.y,ang:p.ang,slowT:0,slowF:0,flash:0,dead:false,pz:null,ph:vr()*6}; G.enemies.push(e); return e;
 }
+/* 파도별 체력 배율: 기본은 1+hpScale×(파도-1). early가 있는 판은 초반 파도를 더 단단하게(곡선을 완만하게) */
+function scaleOf(){ let sc=1+CFG.hpScale*(CFG.pow===1?G.wave-1:Math.pow(G.wave-1,CFG.pow)); if(CFG.early)sc*=1+CFG.early*Math.max(0,1-(G.wave-1)/8); return sc; }
 function spawn(type,lane){
-  const d=ENEMY[type], sc=1+CFG.hpScale*(G.wave-1), hp=Math.round(d.hp*sc);
+  const d=ENEMY[type], sc=scaleOf(), hp=Math.round(d.hp*sc);
   mkEnemy(type,lane||0,0,hp);
 }
 function dmg(e,v,kind){
@@ -559,7 +561,7 @@ function dmg(e,v,kind){
 /* 죽은 뒤: 분열(작은 것 둘) · 독 번짐 */
 function afterDeath(e){
   const d=ENEMY[e.type];
-  if(d.split){ for(let i=0;i<d.split.n;i++){const m=mkEnemy(d.split.piece||'m',e.rt,Math.max(0,e.d+(i?-5:5)),Math.max(1,Math.round(e.max*d.split.hpf))); if(e.pz)m.pz={...e.pz};}
+  if(d.split){ G.extra+=d.split.n; for(let i=0;i<d.split.n;i++){const m=mkEnemy(d.split.piece||'m',e.rt,Math.max(0,e.d+(i?-5:5)),Math.max(1,Math.round(e.max*d.split.hpf))); if(e.pz)m.pz={...e.pz};}
     G.rings.push({x:e.x,y:e.y,r:4,gr:44,life:.25,max:.25,col:d.col,w:2}); burst(e.x,e.y,'#bff6ef',6,80); }
   if(e.pz&&e.pz.t>.3)spreadPoison(e);
 }
@@ -572,7 +574,7 @@ function spreadPoison(e){
 }
 /* 쌍둥이 우두머리: 체력이 절반이 되면 둘로 갈라짐(남은 체력의 합이 늘어나는 것은 의도 — 후반 압박) */
 function halve(e){
-  const d=ENEMY[e.type]; e.dead=true; const hh=Math.round(e.max*d.halve.hpf);
+  const d=ENEMY[e.type]; e.dead=true; G.extra+=2; const hh=Math.round(e.max*d.halve.hpf);
   for(let i=0;i<2;i++){const m=mkEnemy('bh',e.rt,Math.max(0,e.d+(i?-9:9)),hh); if(e.pz)m.pz={...e.pz};}
   burst(e.x,e.y,d.col,30,170,'goo'); G.rings.push({x:e.x,y:e.y,r:d.r*.6,gr:d.r*4,life:.35,max:.35,col:d.col,w:3}); G.shake=Math.max(G.shake,.3);
 }
@@ -646,7 +648,7 @@ function update(dt){
       if(e.bt<=0){ e.bt=d.blink.every; if(e.d+d.blink.dist<M.routes[e.rt].len-40){ e.gx=e.x;e.gy=e.y;e.blinkFx=.35; G.rings.push({x:e.x,y:e.y,r:d.r*.5,gr:d.r*4,life:.3,max:.3,col:d.col,w:2}); burst(e.x,e.y,d.col,6,90); e.d+=d.blink.dist; } } }
     if(e.blinkFx>0)e.blinkFx-=dt;
     if(d.spawn&&!e.dead){ e.st=(e.st===undefined?d.spawn.every*.5:e.st)-dt;   // 산란: 일정 간격으로 작은 적을 낳음(돈 없음)
-      if(e.st<=0){ e.st=d.spawn.every; const sc=1+CFG.hpScale*(G.wave-1);
+      if(e.st<=0){ e.st=d.spawn.every; const sc=scaleOf(); G.extra+=d.spawn.n;
         for(let i=0;i<d.spawn.n;i++){ const m=mkEnemy(d.spawn.type,e.rt,Math.max(0,e.d-8-i*10),Math.round(ENEMY[d.spawn.type].hp*sc*.8)); m.nogold=true; }
         G.rings.push({x:e.x,y:e.y,r:d.r*.6,gr:d.r*3.2,life:.35,max:.35,col:d.col,w:3}); burst(e.x,e.y,'#ffd8cf',8,100); } }
     e.d+=d.sp*(1-e.slowF)*dt; const p=posAt(M.routes[e.rt],e.d); e.x=p.x;e.y=p.y;e.ang=p.ang; if(e.flash>0)e.flash-=dt;
@@ -796,7 +798,7 @@ const NEWT=['toxin','boost','sniper','chain'];
 function updateNew(){ for(const ty of NEWT){ const tb=document.querySelector('.tw[data-t="'+ty+'"]'); if(!tb)continue; const nb=tb.querySelector('.new'); if(nb)nb.style.display=(S.towers.includes(ty)&&!mem.seen[ty])?'block':'none'; } }
 function loadStage(id,resume){
   S=STAGES.find(s=>s.id===id&&!s.soon)||STAGES[0];
-  M=buildMap(S); blocked=M.blocked; WAVES=S.waves; TOTAL_WAVES=S.total; CFG.hpScale=S.hpScale; CFG.bonus=S.bonus; bg=null;
+  M=buildMap(S); blocked=M.blocked; WAVES=S.waves; TOTAL_WAVES=S.total; CFG.hpScale=S.hpScale; CFG.bonus=S.bonus; CFG.early=S.early||0; CFG.pow=S.pow||1; bg=null;
   document.querySelectorAll('.tw').forEach(b=>{b.style.display=S.towers.includes(b.dataset.t)?'':'none';});
   const r1=$('row1'); r1.classList.toggle('n4',S.towers.length===4); r1.classList.toggle('n5',S.towers.length>=5); r1.style.gridTemplateColumns='repeat('+S.towers.length+',1fr)';
   $('wv').querySelector('.of').textContent='/'+S.total; $('row2').classList.toggle('h',STAGE_SELECT);
@@ -1537,7 +1539,7 @@ function render(){
     c.stroke();}
   c.globalAlpha=1;
   drawParts(c); drawFloats(c);
-  if(G.active){const tot=WAVES[G.wave-1].reduce((s,g)=>s+g[1],0),left=G.queue.length+G.enemies.length,f=Math.max(0,1-left/tot);
+  if(G.active){const tot=WAVES[G.wave-1].reduce((s,g)=>s+g[1],0)+(G.extra||0),left=G.queue.length+G.enemies.length,f=Math.max(0,1-left/tot);
     rr(c,12,8,W-24,6,3);c.fillStyle='rgba(0,0,0,.45)';c.fill();
     if(f>0){rr(c,12,8,Math.max(6,(W-24)*f),6,3);const g=c.createLinearGradient(12,0,W-12,0);g.addColorStop(0,'#5ef0b8');g.addColorStop(1,'#3ec6e0');c.fillStyle=g;c.fill();}}
   if(G.flashBase>0){const a=Math.min(1,G.flashBase/.4);const g=c.createRadialGradient(W/2,H/2,H*.3,W/2,H/2,H*.75);g.addColorStop(0,'rgba(255,40,60,0)');g.addColorStop(1,'rgba(255,40,60,'+(.4*a)+')');c.fillStyle=g;c.fillRect(-20,-20,W+40,H+40);}
